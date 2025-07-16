@@ -17,6 +17,7 @@ import { useAuthStore, useUIStore } from "@/lib/store"
 import { AuthModal } from "@/components/auth/auth-modal"
 import { NotificationCenter } from "@/components/notifications/notification-center"
 import { Home, BookOpen, Code, Trophy, User, Settings, LogOut, Menu, X, Zap, Target } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const navigation = [
   { name: "Home", href: "/", icon: Home },
@@ -78,6 +79,8 @@ export function Navigation() {
 
             {/* Right side */}
             <div className="flex items-center space-x-4">
+              {/* Theme Toggle */}
+              <ThemeToggle />
               {/* Notifications */}
               {isAuthenticated && <NotificationCenter />}
 
