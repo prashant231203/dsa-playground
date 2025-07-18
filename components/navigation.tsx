@@ -92,7 +92,7 @@ export function Navigation() {
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user.avatar || "/placeholder.svg"} />
                         <AvatarFallback className="bg-blue-600 text-white text-sm">
-                          {user.name.charAt(0).toUpperCase()}
+                          {user.name && user.name.length > 0 ? user.name.charAt(0).toUpperCase() : '?'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="hidden sm:block text-left">

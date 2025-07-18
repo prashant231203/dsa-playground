@@ -9,9 +9,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuthStore } from "@/lib/store"
 import { useUIStore } from "@/lib/store"
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react"
+import { useRouter } from "next/navigation";
 
 interface RegisterFormProps {
-  onToggleMode: () => void
+  onToggleMode?: () => void;
 }
 
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
@@ -22,6 +23,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const { register, isLoading, error, clearError } = useAuthStore()
   const { addNotification } = useUIStore()
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,8 +63,13 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
         title: "Welcome!",
         message: "Your account has been created successfully",
       })
-    } catch {
-      // Error is handled by the store
+      router.push("/dashboard");
+    } catch (err) {
+      addNotification({
+        type: "error",
+        title: "Registration Failed",
+        message: err instanceof Error ? err.message : "Registration failed. Please try again.",
+      })
     }
   }
 
@@ -150,14 +157,16 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
           </Button>
           <div className="text-center text-sm text-slate-400">
             Already have an account?{" "}
-            <button
-              type="button"
-              onClick={onToggleMode}
-              className="text-blue-400 hover:text-blue-300 font-medium"
-              disabled={isLoading}
-            >
-              Sign in
-            </button>
+            {onToggleMode && (
+              <button
+                type="button"
+                onClick={onToggleMode}
+                className="text-blue-400 hover:text-blue-300 font-medium"
+                disabled={isLoading}
+              >
+                Sign in
+              </button>
+            )}
           </div>
         </CardFooter>
       </form>

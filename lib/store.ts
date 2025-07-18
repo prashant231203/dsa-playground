@@ -410,45 +410,17 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null })
         try {
-          // Simulate API call with validation
-          await new Promise((resolve, reject) => {
-            setTimeout(() => {
-              if (email === "test@test.com" && password === "password") {
-                resolve(true)
-              } else {
-                reject(new Error("Invalid credentials"))
-              }
-            }, 1000)
+          const response = await fetch('http://localhost:3000/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
           })
-
-          const mockUser: User = {
-            id: Date.now().toString(),
-            name: email.split("@")[0].charAt(0).toUpperCase() + email.split("@")[0].slice(1),
-            email,
-            level: Math.floor(Math.random() * 20) + 1,
-            xp: Math.floor(Math.random() * 5000),
-            streak: Math.floor(Math.random() * 30),
-            joinedAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-            lastActive: new Date().toISOString(),
-            preferences: {
-              theme: "dark",
-              notifications: true,
-              memeMode: false,
-              difficulty: "intermediate",
-              learningPath: ["arrays", "linked-lists", "trees"],
-            },
-            stats: {
-              problemsSolved: Math.floor(Math.random() * 100),
-              quizzesTaken: Math.floor(Math.random() * 50),
-              studyTimeMinutes: Math.floor(Math.random() * 10000),
-              conceptsCompleted: Math.floor(Math.random() * 20),
-              averageScore: Math.floor(Math.random() * 40) + 60,
-              bestStreak: Math.floor(Math.random() * 50),
-            },
-          }
-          set({ user: mockUser, isAuthenticated: true, isLoading: false })
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || 'Login failed')
+          set({ user: data.user, isAuthenticated: true, isLoading: false })
+          // Optionally store token in localStorage or state
         } catch (error) {
-          set({ isLoading: false, error: error instanceof Error ? error.message : "Login failed" })
+          set({ isLoading: false, error: error instanceof Error ? error.message : 'Login failed' })
           throw error
         }
       },
@@ -456,49 +428,17 @@ export const useAuthStore = create<AuthState>()(
       register: async (name: string, email: string, password: string) => {
         set({ isLoading: true, error: null })
         try {
-          // Simulate API call with validation
-          await new Promise((resolve, reject) => {
-            setTimeout(() => {
-              if (name.length < 2) {
-                reject(new Error("Name must be at least 2 characters"))
-              } else if (!email.includes("@")) {
-                reject(new Error("Invalid email format"))
-              } else if (password.length < 6) {
-                reject(new Error("Password must be at least 6 characters"))
-              } else {
-                resolve(true)
-              }
-            }, 1000)
+          const response = await fetch('http://localhost:3000/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: name, email, password }),
           })
-
-          const mockUser: User = {
-            id: Date.now().toString(),
-            name,
-            email,
-            level: 1,
-            xp: 0,
-            streak: 0,
-            joinedAt: new Date().toISOString(),
-            lastActive: new Date().toISOString(),
-            preferences: {
-              theme: "dark",
-              notifications: true,
-              memeMode: false,
-              difficulty: "beginner",
-              learningPath: [],
-            },
-            stats: {
-              problemsSolved: 0,
-              quizzesTaken: 0,
-              studyTimeMinutes: 0,
-              conceptsCompleted: 0,
-              averageScore: 0,
-              bestStreak: 0,
-            },
-          }
-          set({ user: mockUser, isAuthenticated: true, isLoading: false })
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || 'Registration failed')
+          set({ user: data.user, isAuthenticated: true, isLoading: false })
+          // Optionally store token in localStorage or state
         } catch (error) {
-          set({ isLoading: false, error: error instanceof Error ? error.message : "Registration failed" })
+          set({ isLoading: false, error: error instanceof Error ? error.message : 'Registration failed' })
           throw error
         }
       },

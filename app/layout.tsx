@@ -2,10 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from 'sonner'
-import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, SidebarSeparator } from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Home, BookOpen, Code, Trophy, User } from "lucide-react";
-import Link from "next/link";
+import GlobalNavbar from '@/components/global-navbar';
 
 export const metadata: Metadata = {
   title: 'DSA Playground - Learn Data Structures & Algorithms',
@@ -19,80 +16,15 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
       <body>
         <AuthProvider>
-          <SidebarProvider>
-            <div className="flex min-h-screen">
-              <Sidebar>
-                <SidebarHeader>
-                  {/* Logo */}
-                  <Link href="/" className="flex items-center space-x-2 mb-4">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <Code className="h-5 w-5 text-white" />
-                    </div>
-                    <span className="text-xl font-bold text-white">DSA Playground</span>
-                  </Link>
-                </SidebarHeader>
-                <SidebarContent>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <Link href="/">
-                        <SidebarMenuButton isActive={false}>
-                          <Home className="h-4 w-4" />
-                          <span>Home</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <Link href="/concepts">
-                        <SidebarMenuButton isActive={false}>
-                          <BookOpen className="h-4 w-4" />
-                          <span>Concepts</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <Link href="/problems">
-                        <SidebarMenuButton isActive={false}>
-                          <Code className="h-4 w-4" />
-                          <span>Problems</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <Link href="/quiz">
-                        <SidebarMenuButton isActive={false}>
-                          <Trophy className="h-4 w-4" />
-                          <span>Quiz</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <Link href="/dashboard">
-                        <SidebarMenuButton isActive={false}>
-                          <User className="h-4 w-4" />
-                          <span>Dashboard</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                  <SidebarSeparator />
-                  <div className="flex flex-col items-center mt-4">
-                    <ThemeToggle />
-                  </div>
-                </SidebarContent>
-                <SidebarFooter>
-                  {/* User profile section can be added here if user is logged in */}
-                </SidebarFooter>
-              </Sidebar>
-              <main className="flex-1">{children}</main>
-            </div>
-          </SidebarProvider>
-          <Toaster 
+          <GlobalNavbar />
+          {children}
+          <Toaster
             position="top-right"
             richColors
             closeButton

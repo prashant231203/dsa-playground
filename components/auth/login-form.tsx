@@ -9,9 +9,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuthStore } from "@/lib/store"
 import { useUIStore } from "@/lib/store"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
+import { useRouter } from "next/navigation";
 
 interface LoginFormProps {
-  onToggleMode: () => void
+  onToggleMode?: () => void;
 }
 
 export function LoginForm({ onToggleMode }: LoginFormProps) {
@@ -20,6 +21,7 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const { login, isLoading, error, clearError } = useAuthStore()
   const { addNotification } = useUIStore()
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,6 +43,7 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
         title: "Welcome back!",
         message: "You've successfully logged in",
       })
+      router.push("/dashboard");
     } catch {
       // Error is handled by the store
     }
@@ -106,14 +109,16 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
           </Button>
           <div className="text-center text-sm text-slate-400">
             Don&apos;t have an account?{" "}
-            <button
-              type="button"
-              onClick={onToggleMode}
-              className="text-blue-400 hover:text-blue-300 font-medium"
-              disabled={isLoading}
-            >
-              Sign up
-            </button>
+            {onToggleMode && (
+              <button
+                type="button"
+                onClick={onToggleMode}
+                className="text-blue-400 hover:text-blue-300 font-medium"
+                disabled={isLoading}
+              >
+                Sign up
+              </button>
+            )}
           </div>
         </CardFooter>
       </form>

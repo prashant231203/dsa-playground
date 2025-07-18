@@ -135,7 +135,7 @@ export default function DashboardPage() {
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-3 space-y-8">
             {/* Learning Progress */}
             <GlassmorphismCard className="p-8">
               <div className="flex items-center justify-between mb-6">
@@ -219,105 +219,6 @@ export default function DashboardPage() {
                       <div className="text-lg font-bold text-white mb-1">{day.problems}</div>
                       <div className="text-xs text-slate-400">problems</div>
                       <div className="text-xs text-blue-400 mt-1">{day.time}min</div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </GlassmorphismCard>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <GlassmorphismCard className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <Link href="/quiz">
-                  <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 justify-start">
-                    <Target className="w-4 h-4 mr-3" />
-                    Take Practice Quiz
-                  </Button>
-                </Link>
-                <Link href="/concepts/linked-lists">
-                  <Button
-                    variant="outline"
-                    className="w-full border-slate-600 text-slate-300 hover:bg-slate-800 bg-transparent justify-start"
-                  >
-                    <Play className="w-4 h-4 mr-3" />
-                    Continue Learning
-                  </Button>
-                </Link>
-                <Link href="/challenges">
-                  <Button
-                    variant="outline"
-                    className="w-full border-slate-600 text-slate-300 hover:bg-slate-800 bg-transparent justify-start"
-                  >
-                    <Code className="w-4 h-4 mr-3" />
-                    Solve Problems
-                  </Button>
-                </Link>
-              </div>
-            </GlassmorphismCard>
-
-            {/* Recent Activity */}
-            <GlassmorphismCard className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-                <Calendar className="w-5 h-5 mr-2 text-blue-400" />
-                Recent Activity
-              </h3>
-              <div className="space-y-4">
-                {recentActivity.map((activity, index) => (
-                  <motion.div
-                    key={index}
-                    className="flex items-start space-x-3 p-3 bg-slate-800/30 rounded-lg border border-slate-700 hover:border-blue-400/30 transition-colors"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <div
-                      className={`p-2 rounded-lg ${
-                        activity.type === "lesson"
-                          ? "bg-blue-500/20"
-                          : activity.type === "quiz"
-                            ? "bg-purple-500/20"
-                            : "bg-green-500/20"
-                      }`}
-                    >
-                      <activity.icon className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-white font-medium">{activity.action}</div>
-                      <div className="text-xs text-slate-400">{activity.time}</div>
-                    </div>
-                    <Badge className="bg-lime-400/20 text-lime-400 border-lime-400/30 text-xs">+{activity.xp} XP</Badge>
-                  </motion.div>
-                ))}
-              </div>
-            </GlassmorphismCard>
-
-            {/* Achievements */}
-            <GlassmorphismCard className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-                <Trophy className="w-5 h-5 mr-2 text-yellow-400" />
-                Recent Achievements
-              </h3>
-              <div className="space-y-3">
-                {[
-                  { name: "First Steps", icon: "🎯", description: "Completed first lesson" },
-                  { name: "Streak Master", icon: "🔥", description: "7-day learning streak" },
-                  { name: "Quiz Champion", icon: "🏆", description: "Perfect quiz score" },
-                ].map((achievement, index) => (
-                  <motion.div
-                    key={index}
-                    className="flex items-center space-x-3 p-3 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-lg"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <div className="text-2xl">{achievement.icon}</div>
-                    <div>
-                      <div className="text-sm font-semibold text-yellow-400">{achievement.name}</div>
-                      <div className="text-xs text-slate-400">{achievement.description}</div>
                     </div>
                   </motion.div>
                 ))}

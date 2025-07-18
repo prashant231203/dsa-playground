@@ -8,10 +8,24 @@ const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
 const vm = require('vm');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
+const { z } = require('zod');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Rate limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { success: false, error: 'Too many requests, please try again later.' }
+});
+const executeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // limit each IP to 5 code executions per minute
+  message: { success: false, error: 'Too many code executions, slow down!' }
+});
 
 // Middleware
 app.use(helmet());
@@ -88,6 +102,25 @@ function initializeDatabase() {
       FOREIGN KEY (question_id) REFERENCES questions (id)
     )`);
 
+    // Concepts table
+    db.run(`CREATE TABLE IF NOT EXISTS concepts (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Blogs table
+    db.run(`CREATE TABLE IF NOT EXISTS blogs (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      author TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     // Insert sample questions
     const sampleQuestions = [
       {
@@ -152,6 +185,25 @@ function initializeDatabase() {
   });
 }
 
+// Zod schemas
+const registerSchema = z.object({
+  username: z.string().min(3).max(32),
+  email: z.string().email(),
+  password: z.string().min(6).max(128)
+});
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6).max(128)
+});
+const questionSchema = z.object({
+  title: z.string().min(3),
+  description: z.string().min(10),
+  difficulty: z.enum(['Easy', 'Medium', 'Hard']),
+  category: z.string().min(2),
+  testCases: z.array(z.object({ input: z.any(), output: z.any() })),
+  solutionTemplate: z.string().optional()
+});
+
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -177,10 +229,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Authentication routes
-app.post('/api/auth/register', async (req, res) => {
+// Authentication routes with rate limiting and validation
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const parse = registerSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({ success: false, error: parse.error.errors.map(e => e.message).join(', ') });
+    }
+    const { username, email, password } = parse.data;
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -338,8 +394,8 @@ app.get('/api/questions/:id', (req, res) => {
   });
 });
 
-// Code execution route
-app.post('/api/execute', authenticateToken, (req, res) => {
+// Code execution route with rate limiting
+app.post('/api/execute', executeLimiter, authenticateToken, (req, res) => {
   try {
     const { code, language, questionId } = req.body;
 
@@ -362,46 +418,68 @@ app.post('/api/execute', authenticateToken, (req, res) => {
       let allPassed = true;
       let totalExecutionTime = 0;
 
-      // Execute code for each test case
+      // --- Refactored code execution for robust function name and argument handling ---
+      // Extract function name from solution_template or question title
+      let functionName = null;
+      // Try to extract from solution_template
+      if (question.solution_template) {
+        const match = question.solution_template.match(/function\s+([a-zA-Z0-9_]+)/);
+        if (match) functionName = match[1];
+      }
+      // Fallback to sanitized question title
+      if (!functionName) {
+        functionName = question.title.replace(/\s+/g, '');
+      }
+
       for (let index = 0; index < testCases.length; index++) {
         const testCase = testCases[index];
         try {
           const startTime = Date.now();
-          
-          // Create a safe execution context
+          let userResult;
+          let error = null;
+          // Prepare the context and code
           const context = vm.createContext({
             console: {
               log: (...args) => results.push({ type: 'log', data: args.join(' ') })
             }
           });
-          
-          // Prepare the execution context
+
+          // Prepare argument list for function call
+          let argList = [];
+          if (Array.isArray(testCase.input)) {
+            argList = testCase.input;
+          } else if (typeof testCase.input === 'object' && testCase.input !== null) {
+            // If input is an object, spread its values (for destructured args)
+            argList = Object.values(testCase.input);
+          } else {
+            argList = [testCase.input];
+          }
+
+          // Build the code to execute
           const executionCode = `
             ${code}
-            
-            // Test case execution
-            const result = ${question.title.replace(/\s+/g, '')}(${JSON.stringify(testCase.input)});
-            result;
+            if (typeof ${functionName} !== 'function') throw new Error('Function ${functionName} is not defined.');
+            const __result = ${functionName}.apply(null, ${JSON.stringify(argList)});
+            __result;
           `;
 
           const script = new vm.Script(executionCode);
-          const result = script.runInContext(context, { timeout: 5000 });
+          userResult = script.runInContext(context, { timeout: 5000 });
           const executionTime = Date.now() - startTime;
           totalExecutionTime += executionTime;
 
-          // Check if result matches expected output
-          const passed = JSON.stringify(result) === JSON.stringify(testCase.output);
+          // Compare result
+          const passed = JSON.stringify(userResult) === JSON.stringify(testCase.output);
           allPassed = allPassed && passed;
 
           results.push({
             testCase: index + 1,
             input: testCase.input,
             expected: testCase.output,
-            actual: result,
+            actual: userResult,
             passed,
             executionTime
           });
-
         } catch (error) {
           allPassed = false;
           results.push({
@@ -522,6 +600,117 @@ app.post('/api/admin/questions', authenticateToken, (req, res) => {
       });
     }
   );
+});
+
+// --- Concepts Endpoints ---
+const conceptSchema = z.object({
+  title: z.string().min(3),
+  description: z.string().min(10),
+});
+
+// List all concepts
+app.get('/api/concepts', (req, res) => {
+  db.all('SELECT * FROM concepts ORDER BY created_at DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    res.json({ success: true, concepts: rows });
+  });
+});
+
+// Get a single concept
+app.get('/api/concepts/:id', (req, res) => {
+  db.get('SELECT * FROM concepts WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    if (!row) return res.status(404).json({ success: false, error: 'Concept not found' });
+    res.json({ success: true, concept: row });
+  });
+});
+
+// Create a concept (admin only)
+app.post('/api/concepts', authenticateToken, (req, res) => {
+  // TODO: Replace with real admin check
+  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Admin only' });
+  const parse = conceptSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ success: false, error: parse.error.errors.map(e => e.message).join(', ') });
+  const { title, description } = parse.data;
+  const id = uuidv4();
+  db.run('INSERT INTO concepts (id, title, description) VALUES (?, ?, ?)', [id, title, description], function(err) {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    res.status(201).json({ success: true, id });
+  });
+});
+
+// Update a concept (admin only)
+app.put('/api/concepts/:id', authenticateToken, (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Admin only' });
+  const parse = conceptSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ success: false, error: parse.error.errors.map(e => e.message).join(', ') });
+  const { title, description } = parse.data;
+  db.run('UPDATE concepts SET title = ?, description = ? WHERE id = ?', [title, description, req.params.id], function(err) {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    res.json({ success: true });
+  });
+});
+
+// Delete a concept (admin only)
+app.delete('/api/concepts/:id', authenticateToken, (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Admin only' });
+  db.run('DELETE FROM concepts WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    res.json({ success: true });
+  });
+});
+
+// --- Blogs Endpoints ---
+const blogSchema = z.object({
+  title: z.string().min(3),
+  content: z.string().min(10),
+  author: z.string().min(2),
+});
+
+app.get('/api/blogs', (req, res) => {
+  db.all('SELECT * FROM blogs ORDER BY created_at DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    res.json({ success: true, blogs: rows });
+  });
+});
+
+app.get('/api/blogs/:id', (req, res) => {
+  db.get('SELECT * FROM blogs WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    if (!row) return res.status(404).json({ success: false, error: 'Blog not found' });
+    res.json({ success: true, blog: row });
+  });
+});
+
+app.post('/api/blogs', authenticateToken, (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Admin only' });
+  const parse = blogSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ success: false, error: parse.error.errors.map(e => e.message).join(', ') });
+  const { title, content, author } = parse.data;
+  const id = uuidv4();
+  db.run('INSERT INTO blogs (id, title, content, author) VALUES (?, ?, ?, ?)', [id, title, content, author], function(err) {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    res.status(201).json({ success: true, id });
+  });
+});
+
+app.put('/api/blogs/:id', authenticateToken, (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Admin only' });
+  const parse = blogSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ success: false, error: parse.error.errors.map(e => e.message).join(', ') });
+  const { title, content, author } = parse.data;
+  db.run('UPDATE blogs SET title = ?, content = ?, author = ? WHERE id = ?', [title, content, author, req.params.id], function(err) {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    res.json({ success: true });
+  });
+});
+
+app.delete('/api/blogs/:id', authenticateToken, (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Admin only' });
+  db.run('DELETE FROM blogs WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ success: false, error: 'Database error' });
+    res.json({ success: true });
+  });
 });
 
 // Error handling middleware
